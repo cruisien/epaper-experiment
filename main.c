@@ -2,7 +2,7 @@
  *Code by Simon Chatziparaskewas 
  * finished this version 9.10.2020(european date)
  * written for Atmega8
- * used display: GDEW0213C38 code-20191012 (from GOOD DISPLAY)
+ * used display: GDEW0213C38 (from GOOD DISPLAY)
  * used adapter for comunication with display: DESPI-CO2
  * 
  * i dont own the pictures
