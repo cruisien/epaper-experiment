@@ -1,3 +1,16 @@
+/*
+ *Code by Simon Chatziparaskewas 
+ * finished this version 9.10.2020(european date)
+ * written for Atmega8
+ * used display: GDEW0213C38 code-20191012 (from GOOD DISPLAY)
+ * used adapter for comunication with display: DESPI-CO2
+ * 
+ * i dont own the pictures
+ * made bitmap for writing myself
+ * 
+*/
+
+
 #define F_CPU 8000000UL
 #include <stdlib.h>
 #include <avr/io.h>
@@ -15,18 +28,18 @@
 
 
 
-void TRANSD (char data);//transfer byte as data
-void TRANSC (char data);//transfer byte as command
-void EPD_INIT (void);//initialize display
-void EPWAIT (void);//wait fore BUSY high if BUSY low
-void PIC_DISPLAY (uint8_t black, uint8_t yellow, uint16_t bytes);// draws number of bytes on display with defined colors
-void PIC_DISPLAYARAY (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte);//draws number of bytes on display with array as source ARRAY1 = Black ARRAY2 = Yellow if 0 is given as array it outputs white (array chosen with position of array in array: arraynr)
-void EPD_REFRESH (void);//refreshes the colors use after data to display is transphered
-void EPD_SLEEP (void);//shuts down display use at end of programm after use display needs to be initialised aganin
-void EPD_WINDOW (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwarz, uint8_t* gelb);// fills window with given color
-void EPD_WINDOWARAY (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2);//same as PIC_displayarray in window
-void EPD_TEXT (uint8_t x, uint8_t y, uint8_t color);// x defines bank (byte) and y pixel in top right of text color: 1=yellow 0=black  text needs to be defined before with strcpy(eingabe, "TEXT HERE") usable characters are in array: letters 
-void EPD_LETTER (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, char letter, uint8_t color);//displays letter used fore EPD_text cordinates same as EPD_window color same as EPD_text
+void Transd (char data);//transfer byte as data
+void Transc (char data);//transfer byte as command
+void EPD_init (void);//initialize display
+void EPD_wait (void);//wait fore BUSY high if BUSY low
+void PIC_display (uint8_t black, uint8_t yellow, uint16_t bytes);// draws number of bytes on display with defined colors
+void PIC_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte);//draws number of bytes on display with array as source ARRAY1 = Black ARRAY2 = Yellow if 0 is given as array it outputs white (array chosen with position of array in array: arraynr)
+void EPD_refresh (void);//refreshes the colors use after data to display is transphered
+void EPD_sleep (void);//shuts down display use at end of programm after use display needs to be initialised aganin
+void EPD_window (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwarz, uint8_t* gelb);// fills window with given color
+void EPD_windowarray (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2);//same as PIC_displayarray in window (if y of window >1pixel it somhow adds 1 to the x (banks) no error in code has to be my display so you need to make wantet x2 -1 as input the other corrections are made in code)
+void EPD_text (uint8_t x, uint8_t y, uint8_t color);// x defines bank (byte) and y pixel in top right of text color: 1=yellow 0=black  text needs to be defined before with strcpy(eingabe, "TEXT HERE") usable characters are in array: letters 
+void EPD_letter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, char letter, uint8_t color);//displays letter used fore EPD_text cordinates same as EPD_window color same as EPD_text
 void EPD_pletter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint16_t i, uint8_t color);//displays letter from given position in array:letters  rest same as EPD_letter
 
 
@@ -330,7 +343,6 @@ const uint8_t bildgelb[1352]PROGMEM={//qrcode inverse gelb// numb. 2  qr code in
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
 const uint8_t image[800]PROGMEM={ //numb. 4 //80x80 = 6400Pixel = [800] Woodstock
 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xbf, 0xff, 0xff, 0xff, 0xff, 0xff, 
 0xff, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -422,12 +434,10 @@ const uint8_t letters[]PROGMEM={//numb.6 // bitmap eingebbare zeichen
 	0xff, 0xf7, 0xf7, 0xd5, 0xf7, 0xf7, 0xff,// / 308-314
 	0xff, 0xd7, 0xd7, 0xd7, 0xd7, 0xd7, 0xff,//= 315-321
 	};
+char eingabe[] = {0}; // numb. 5// variable eingabestring  
 
 
-char eingabe[] = {0}; // numb. 5// variable eingabestring  //due to unsigndess results in warning: pointer targets in initialization differ in signedness in line 430
-
-
-const  unsigned char* const arraynr[] = {0,bildschwarz,bildgelb, bild1, image, eingabe, letters};//warning: pointer targets in initialization differ in signedness due to line 427
+const  unsigned char* const arraynr[] = {0/*0 needs to stay at first place*/,bild1, bildschwarz, bildgelb,image};
 
 
 int main (void)
@@ -452,25 +462,23 @@ int main (void)
 	
 
 
-	EPD_INIT();
-	PIC_DISPLAY (0xff, 0xff, pixel);//makes display all white
-	EPWAIT();
-	strcpy(eingabe, "1234567890");
-	EPD_TEXT(10,110,1);
+	EPD_init();
+	PIC_display (0xff, 0xff, pixel);//makes display all white
+	EPD_wait();
 	strcpy(eingabe, "BITTE QR-CODE");
-	EPD_TEXT(3,110,0);
+	EPD_text(3,110,0);
 	strcpy(eingabe, "SCANNEN");
-	EPD_TEXT(5,152,0);
-	PIC_DISPLAYARAY(1,2,1352);
-	EPD_REFRESH();
-	EPWAIT();
-	EPD_SLEEP();
+	EPD_text(5,154,0);
+	PIC_displayarray(2,3,1352);
+	EPD_refresh();
+	EPD_wait();
+	EPD_sleep();
 		
 return 0 ;
 
 }//end of main
 
-void TRANSD (char data)//transfer data
+void Transd (char data)//transfer data
 {
 
 
@@ -482,7 +490,7 @@ void TRANSD (char data)//transfer data
 }
 
 
-void TRANSC (char data)//transfer command
+void Transc (char data)//transfer command
 {
 
 
@@ -497,7 +505,7 @@ void TRANSC (char data)//transfer command
 
 
 
-void EPD_INIT (void){//epaper initialisation
+void EPD_init (void){//epaper initialisation
 	//reset display processor
 	RES0;
 	_delay_ms(250);
@@ -505,133 +513,133 @@ void EPD_INIT (void){//epaper initialisation
 	_delay_ms(250);
 	
 
-	TRANSC(0x06);//bost soft start
-	TRANSD(0x17);//A
-	TRANSD(0x17);//B
-	TRANSD(0x17);//C
+	Transc(0x06);//bost soft start
+	Transd(0x17);//A
+	Transd(0x17);//B
+	Transd(0x17);//C
 	
-	TRANSC(0x04);//Power on
-	EPWAIT();
+	Transc(0x04);//Power on
+	EPD_wait();
 	
 	
-	TRANSC(0x00);//Panel settings
-	TRANSD(0b00001111);    //LUT from OTP£¬128x296
-	TRANSD(0x0d);     //VCOM to 0V fast
+	Transc(0x00);//Panel settings
+	Transd(0b00001111);    //LUT from OTP£¬128x296
+	Transd(0x0d);     //VCOM to 0V fast
 	
-	TRANSC(0x61);     //resolution setting
-	TRANSD(0x68); //104
-	TRANSD(0x00); //212
-	TRANSD(0xd4);
+	Transc(0x61);     //resolution setting
+	Transd(0x68); //104
+	Transd(0x00); //212
+	Transd(0xd4);
 	
-	TRANSC(0X50);     //VCOM AND DATA INTERVAL SETTING
-	TRANSD(0x77);    //WBmode:VBDF 17|D7 VBDW 97 VBDB 57   WBRmode:VBDF F7 VBDW 77 VBDB 37  VBDR B7
+	Transc(0X50);     //VCOM AND DATA INTERVAL SETTING
+	Transd(0x77);    //WBmode:VBDF 17|D7 VBDW 97 VBDB 57   WBRmode:VBDF F7 VBDW 77 VBDB 37  VBDR B7
 }
 
-void PIC_DISPLAYARAY (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte){
+void PIC_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte){
     uint16_t i;//byte counter for transpher & position of byte in array
-    EPWAIT();
-    TRANSC(0x10);        //Transfer black data
+    EPD_wait();
+    Transc(0x10);        //Transfer black data
     for(i=0;i<byte;i++){
-		EPWAIT();
+		EPD_wait();
 		if(ARRAY1 == 0){//if no array is given
-			TRANSD (0xff);
+			Transd (0xff);
 		}
 		else{
-			TRANSD(pgm_read_byte(&(arraynr[ARRAY1])[i]));
+			Transd(pgm_read_byte(&(arraynr[ARRAY1])[i]));
 		} 
 	}
-	EPWAIT();
+	EPD_wait();
 	
-    TRANSC(0x13);        //Transfer yellow data
+    Transc(0x13);        //Transfer yellow data
     for(i=0;i<byte;i++){   
-		EPWAIT();
+		EPD_wait();
 		if(ARRAY2 == 0){
-			TRANSD (0xff);
+			Transd (0xff);
 		}
 		else{
-			TRANSD(pgm_read_byte(&(arraynr[ARRAY2])[i]));
+			Transd(pgm_read_byte(&(arraynr[ARRAY2])[i]));
 		}
 	}
-	EPWAIT();
-	TRANSC(0x11);//end of data transmition do not forget ore it wont start
-	TRANSD(0xff);//data transmition complete
+	EPD_wait();
+	Transc(0x11);//end of data transmition do not forget ore it wont start
+	Transd(0xff);//data transmition complete
 }
 
-void PIC_DISPLAY (uint8_t black, uint8_t yellow, uint16_t bytes)
+void PIC_display (uint8_t black, uint8_t yellow, uint16_t bytes)
 {
     uint16_t i;
-    EPWAIT();
-    TRANSC(0x10);        //Transfer black data
+    EPD_wait();
+    Transc(0x10);        //Transfer black data
     for(i=0;i<bytes;i++){
-		EPWAIT();
-		TRANSD(black);
+		EPD_wait();
+		Transd(black);
 	}
   
-	EPWAIT();
+	EPD_wait();
 
-    TRANSC(0x13);        //Transfer yellow data
+    Transc(0x13);        //Transfer yellow data
     for(i=0;i<bytes;i++){
-		EPWAIT();
-		TRANSD(yellow);
+		EPD_wait();
+		Transd(yellow);
   }
-  EPWAIT();
+  EPD_wait();
   
-  TRANSC(0x11);//end of data transmition do not forget ore it wont start
-  TRANSD(0xff);
+  Transc(0x11);//end of data transmition do not forget ore it wont start
+  Transd(0xff);
 }
 
-void EPD_WINDOW (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwarz, uint8_t* gelb){
+void EPD_window (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwarz, uint8_t* gelb){
 	uint16_t pixel = ((x2 - x1) * (y2 - y1));
 
-	TRANSC(0x91);//enter window mode
+	Transc(0x91);//enter window mode
 		
-	TRANSC(0x90);
-	TRANSD(x1<<3);
-	TRANSD((x2<<3) + 5);
-	TRANSD(y1>>8);          //DEFINE WINDOW
-	TRANSD(y1);
-	TRANSD(y2>>8);
-	TRANSD(y2);
-	TRANSD(0x01);
+	Transc(0x90);
+	Transd(x1<<3);
+	Transd((x2<<3) + 5);
+	Transd(y1>>8);          //DEFINE WINDOW
+	Transd(y1);
+	Transd(y2>>8);
+	Transd(y2);
+	Transd(0x01);
 	
 
 	
-	PIC_DISPLAY(schwarz, gelb, pixel);//warning: mages integer from pointer without a cast
+	PIC_display(schwarz, gelb, pixel);//warning: passing argument 1 of 'PIC_display' makes integer from pointer without a cast
 	
-	EPWAIT();
-	TRANSC(0x92);//leave window mode
+	EPD_wait();
+	Transc(0x92);//leave window mode
 }
 
-void EPD_WINDOWARAY (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2){
+void EPD_windowarray (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2){
 	uint16_t pixel = (((x2+1) - x1) * (y2 - y1) + 1);
 
-	TRANSC(0x91);
+	Transc(0x91);
 		
-	TRANSC(0x90);//enter window mode
-	TRANSD(x1<<3);
-	TRANSD((x2<<3)+5);
-	TRANSD(y1>>8);          //DEFINE WINDOW
-	TRANSD(y1);
-	TRANSD(y2>>8);
-	TRANSD(y2);
-	TRANSD(0x01);
+	Transc(0x90);//enter window mode
+	Transd(x1<<3);
+	Transd((x2<<3)+5);
+	Transd(y1>>8);          //DEFINE WINDOW
+	Transd(y1);
+	Transd(y2>>8);
+	Transd(y2);
+	Transd(0x01);
 	
 
 	
-	PIC_DISPLAYARAY(ARRAY1, ARRAY2, pixel);//warning: mages integer from pointer without a cast
+	PIC_displayarray(ARRAY1, ARRAY2, pixel);
 	
-	EPWAIT();
-	TRANSC(0x92);//leave window mode
+	EPD_wait();
+	Transc(0x92);//leave window mode
 }
 
-void EPD_TEXT (uint8_t x, uint8_t y, uint8_t color){
+void EPD_text (uint8_t x, uint8_t y, uint8_t color){
 	uint8_t i = 0;
 	uint8_t ni = 0;
 	uint8_t x1;
 	uint8_t x2;
 	uint8_t y1;
 	uint8_t y2;
-	char letter;
+
 	
 	x2 = x + 1;
 	x1 = x;
@@ -644,9 +652,8 @@ void EPD_TEXT (uint8_t x, uint8_t y, uint8_t color){
 	}
 	while(ni != 0){//output string backwards
 		ni--;
-		letter = eingabe[ni];
-		EPD_LETTER( x1, x2, y1, y2, letter, color);
-		EPWAIT();
+		EPD_letter( x1, x2, y1, y2,eingabe[ni], color);
+		EPD_wait();
 		y1 = y1 + 7;
 		y2 = y2 + 7;
 	}
@@ -654,7 +661,7 @@ void EPD_TEXT (uint8_t x, uint8_t y, uint8_t color){
 	
 }
 
-void EPD_LETTER (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, char letter, uint8_t color){
+void EPD_letter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, char letter, uint8_t color){
 	switch(letter){
 		case 65 ... 90: EPD_pletter(x1,x2,y1,y2,((letter - 65) * 7),color); break;
 		case 48 ... 57: EPD_pletter(x1,x2,y1,y2,((letter - 16) * 7),color); break;
@@ -681,7 +688,7 @@ void EPD_pletter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint16_t i, ui
 	uint16_t I = i;
 	if(color == 0) {
 		while((i+7) != I){//output all 7 banks (byte) alone
-			EPD_WINDOW(x1,x2,Y1,Y2,(pgm_read_byte(&letters[I])), 0xff);//warning: passing argument 5/6 of 'EPD_WINDOW' makes pointer from integer without a cast
+			EPD_window(x1,x2,Y1,Y2,(pgm_read_byte(&letters[I])), 0xff);//warning: passing argument 5/6 of 'EPD_window' makes pointer from integer without a cast
 			Y2++;
 			Y1++;
 			I++;
@@ -689,7 +696,7 @@ void EPD_pletter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint16_t i, ui
 	}
 	else if(color == 1){
 		while((i+7) != I){//output all 7 banks (byte) alone
-			EPD_WINDOW(x1,x2,Y1,Y2, 0xff,(pgm_read_byte(&letters[I])));//warning: passing argument 5/6 of 'EPD_WINDOW' makes pointer from integer without a cast
+			EPD_window(x1,x2,Y1,Y2, 0xff,(pgm_read_byte(&letters[I])));//warning: passing argument 5/6 of 'EPD_window' makes pointer from integer without a cast
 			Y2++;
 			Y1++;
 			I++;
@@ -697,21 +704,21 @@ void EPD_pletter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint16_t i, ui
 	}
 }
 
-void EPD_REFRESH (void){EPWAIT();
-	TRANSC(0x12);     //DISPLAY REFRESH   
+void EPD_refresh (void){EPD_wait();
+	Transc(0x12);     //DISPLAY REFRESH   
 	_delay_ms(500);
-	EPWAIT();
+	EPD_wait();
 }
 
 
-void EPD_SLEEP (void){
-	TRANSC(0X50);  //VCOM AND DATA INTERVAL SETTING
-	TRANSD(0xf7); //WBmode:VBDF 17|D7 VBDW 97 VBDB 57    WBRmode:VBDF F7 VBDW 77 VBDB 37  VBDR B7
-	TRANSC(0X02);   //power off
-	EPWAIT();
+void EPD_sleep (void){
+	Transc(0X50);  //VCOM AND DATA INTERVAL SETTING
+	Transd(0xf7); //WBmode:VBDF 17|D7 VBDW 97 VBDB 57    WBRmode:VBDF F7 VBDW 77 VBDB 37  VBDR B7
+	Transc(0X02);   //power off
+	EPD_wait();
 }
 
-void EPWAIT (void){
+void EPD_wait (void){
 	while(BUSY == 0){//when BUSY low wait till no longer low
 		_delay_ms(100);
 	}
