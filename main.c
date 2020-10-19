@@ -25,6 +25,7 @@
 #define RES1 PORTC |= (1<<PC2)//reset off
 #define RES0 PORTC &= ~(1<<PC2)//reset on
 #define BUSY (PINC & (1<<PC3))//BUSY wen low do not talk
+#define TASTE !(PIND & (1<<PD0))//taste
 
 
 
@@ -32,12 +33,12 @@ void Transd (char data);//transfer byte as data
 void Transc (char data);//transfer byte as command
 void EPD_init (void);//initialize display
 void EPD_wait (void);//wait fore BUSY high if BUSY low
-void PIC_display (uint8_t black, uint8_t yellow, uint16_t bytes);// draws number of bytes on display with defined colors
-void PIC_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte);//draws number of bytes on display with array as source ARRAY1 = Black ARRAY2 = Yellow if 0 is given as array it outputs white (array chosen with position of array in array: arraynr)
+void EPD_display (uint8_t black, uint8_t yellow, uint16_t bytes);// draws number of bytes on display with defined colors
+void EPD_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte);//draws number of bytes on display with array as source ARRAY1 = Black ARRAY2 = Yellow if 0 is given as array it outputs white (array chosen with position of array in array: arraynr)
 void EPD_refresh (void);//refreshes the colors use after data to display is transphered
 void EPD_sleep (void);//shuts down display use at end of programm after use display needs to be initialised aganin
 void EPD_window (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwarz, uint8_t* gelb);// fills window with given color
-void EPD_windowarray (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2);//same as PIC_displayarray in window (if y of window >1pixel it somhow adds 1 to the x (banks) no error in code has to be my display so you need to make wantet x2 -1 as input the other corrections are made in code)
+void EPD_windowarray (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t ARRAY1, uint8_t ARRAY2);//same as EPD_displayarray in window (if y of window >1pixel it somhow adds 1 to the x (banks) no error in code has to be my display so you need to make wantet x2 -1 as input the other corrections are made in code)
 void EPD_text (uint8_t x, uint8_t y, uint8_t color);// x defines bank (byte) and y pixel in top right of text color: 1=yellow 0=black  text needs to be defined before with strcpy(eingabe, "TEXT HERE") usable characters are in array: letters 
 void EPD_letter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, char letter, uint8_t color);//displays letter used fore EPD_text cordinates same as EPD_window color same as EPD_text
 void EPD_pletter (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint16_t i, uint8_t color);//displays letter from given position in array:letters  rest same as EPD_letter
@@ -444,35 +445,70 @@ int main (void)
 {
 
 	uint16_t pixel = 2756;
+	uint8_t taste = 1;
 
 	
 	DDRB |= (1<<2) | (1<<3) | (1<<5); // SCK, MOSI und SS outputs
 	DDRC |= (1<<PC0) | (1<<PC1) | (1<<PC2); //init zusätzliche ports
 	DDRB &= ~(1<<4); //MISO input
 	DDRC &= ~(1<<PC3);//BUSY wen interrupted no data transfer
-	PORTD |= (1<<PD0); //portd pullup
+	DDRD &= ~(1<<PD0);//taster 
+	PORTD |= (1<<PD0); //pullup taster
+	
 	
 	SPCR |= (1<<MSTR); //set as master
 	SPCR |= (1<<SPR0) | (1<<SPI2X); // divide clock by 
 	SPCR |= (1<<SPE); // enable spi
 
+		EPD_init();
+		EPD_display (0xff, 0xff, pixel);//makes display all white
+		EPD_wait();
+		strcpy(eingabe, "BITTE QR-CODE");
+		EPD_text(7,(110),0);
+		strcpy(eingabe, "SCANNEN");
+		EPD_text(5,110,0);
+		EPD_displayarray(0,3,1352);
+		EPD_refresh();
+		EPD_wait();
+		EPD_sleep();
 
-	
-	 
-	
 
-
-	EPD_init();
-	PIC_display (0xff, 0xff, pixel);//makes display all white
-	EPD_wait();
-	strcpy(eingabe, "BITTE QR-CODE");
-	EPD_text(3,110,0);
-	strcpy(eingabe, "SCANNEN");
-	EPD_text(5,154,0);
-	PIC_displayarray(2,3,1352);
-	EPD_refresh();
-	EPD_wait();
-	EPD_sleep();
+	while(1){
+						
+						
+		while(taste > TASTE){}
+		taste--;
+		
+		EPD_init();
+		EPD_display (0xff, 0xff, pixel);//makes display all white
+		EPD_wait();
+		EPD_windowarray(1,11,0,88,1,0);
+		EPD_windowarray(2,11,90,170,0,4);
+		EPD_refresh();
+		EPD_wait();
+		EPD_sleep();
+		
+		while(taste < TASTE){}
+		taste++;
+		
+		while(taste > TASTE){}
+		taste--;
+		
+		EPD_init();
+		EPD_display (0xff, 0xff, pixel);//makes display all white
+		EPD_wait();
+		strcpy(eingabe, "BITTE QR-CODE");
+		EPD_text(3,110,0);
+		strcpy(eingabe, "SCANNEN");
+		EPD_text(5,154,0);
+		EPD_displayarray(2,3,1352);
+		EPD_refresh();
+		EPD_wait();
+		EPD_sleep();
+		
+		while(taste < TASTE){}
+		taste++;
+	}	
 		
 return 0 ;
 
@@ -523,7 +559,7 @@ void EPD_init (void){//epaper initialisation
 	
 	
 	Transc(0x00);//Panel settings
-	Transd(0b00001111);    //LUT from OTP£¬128x296
+	Transd(0b00000011);    //LUT from OTP£¬128x296
 	Transd(0x0d);     //VCOM to 0V fast
 	
 	Transc(0x61);     //resolution setting
@@ -535,7 +571,7 @@ void EPD_init (void){//epaper initialisation
 	Transd(0x77);    //WBmode:VBDF 17|D7 VBDW 97 VBDB 57   WBRmode:VBDF F7 VBDW 77 VBDB 37  VBDR B7
 }
 
-void PIC_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte){
+void EPD_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte){
     uint16_t i;//byte counter for transpher & position of byte in array
     EPD_wait();
     Transc(0x10);        //Transfer black data
@@ -565,7 +601,7 @@ void PIC_displayarray (uint8_t ARRAY1, uint8_t ARRAY2 , uint16_t byte){
 	Transd(0xff);//data transmition complete
 }
 
-void PIC_display (uint8_t black, uint8_t yellow, uint16_t bytes)
+void EPD_display (uint8_t black, uint8_t yellow, uint16_t bytes)
 {
     uint16_t i;
     EPD_wait();
@@ -604,7 +640,7 @@ void EPD_window (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t* schwar
 	
 
 	
-	PIC_display(schwarz, gelb, pixel);//warning: passing argument 1 of 'PIC_display' makes integer from pointer without a cast
+	EPD_display(schwarz, gelb, pixel);//warning: passing argument 1 of 'EPD_display' makes integer from pointer without a cast
 	
 	EPD_wait();
 	Transc(0x92);//leave window mode
@@ -626,7 +662,7 @@ void EPD_windowarray (uint8_t x1, uint8_t x2, uint8_t y1, uint8_t y2, uint8_t AR
 	
 
 	
-	PIC_displayarray(ARRAY1, ARRAY2, pixel);
+	EPD_displayarray(ARRAY1, ARRAY2, pixel);
 	
 	EPD_wait();
 	Transc(0x92);//leave window mode
@@ -723,6 +759,9 @@ void EPD_wait (void){
 		_delay_ms(100);
 	}
 }
+
+
+
 
 
 
